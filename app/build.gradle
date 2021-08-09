@@ -2,6 +2,9 @@ plugins {
     id 'com.android.application'
     id 'kotlin-android'
     id 'kotlin-kapt'
+    id "androidx.navigation.safeargs"
+    id 'kotlin-parcelize'
+
 }
 
 android {
@@ -62,7 +65,9 @@ dependencies {
     implementation 'androidx.navigation:navigation-fragment-ktx:2.2.2'
     implementation 'androidx.navigation:navigation-ui-ktx:2.2.2'
 
+
     implementation 'com.github.bumptech.glide:glide:4.11.0'
+    implementation 'androidx.legacy:legacy-support-v4:1.0.0'
     kapt 'com.github.bumptech.glide:compiler:4.11.0'
 
     def room_version = '2.2.6'
@@ -71,6 +76,15 @@ dependencies {
 
     implementation 'com.intuit.sdp:sdp-android:1.0.6'
     implementation 'com.karumi:dexter:6.2.2'
+
+    implementation 'androidx.palette:palette-ktx:1.0.0'
+
+    implementation 'com.squareup.retrofit2:retrofit:2.9.0'
+    implementation 'com.squareup.retrofit2:converter-gson:2.8.1'
+    implementation 'com.squareup.retrofit2:adapter-rxjava3:2.9.0'
+
+    implementation 'io.reactivex.rxjava3:rxandroid:3.0.0'
+    implementation 'io.reactivex.rxjava3:rxjava:3.0.0'
 
     testImplementation 'junit:junit:4.+'
     androidTestImplementation 'androidx.test.ext:junit:1.1.1'

@@ -18,8 +18,6 @@ import android.provider.Settings
 import android.text.TextUtils
 import android.util.Log
 import android.view.View
-import android.view.WindowManager
-import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.core.content.ContextCompat
@@ -57,33 +55,76 @@ import java.util.*
 
 class AddUpdateDishActivity : AppCompatActivity(), View.OnClickListener {
 
-    private lateinit var mbinding: ActivityAddUpdateDishBinding
+    private lateinit var mBinding: ActivityAddUpdateDishBinding
     private var mImagePath: String = ""
     private lateinit var mCustomListDialog: Dialog
+    private var mFavDishDetails: FavDish? = null
+
     private val mFavDishViewModel: FavDishViewModel by viewModels {
         FavDishViewModelFactory((application as FavDishApplication).repository)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        mbinding = ActivityAddUpdateDishBinding.inflate(layoutInflater)
-        setContentView(mbinding.root)
+        mBinding = ActivityAddUpdateDishBinding.inflate(layoutInflater)
+        setContentView(mBinding.root)
+
+        /**
+         * from popup edit here
+         */
+        if (intent.hasExtra(Constants.EXTRA_DISH_DETAILS)) {
+            mFavDishDetails = intent.getParcelableExtra(Constants.EXTRA_DISH_DETAILS)
+        }
 
         setupActionBar()
 
-        mbinding.ivAddDishImage.setOnClickListener(this)
+        mFavDishDetails?.let {
+            if (it.id != 0) {
+                mImagePath = it.image
+                Glide.with(this)
+                    .load(mImagePath)
+                    .centerCrop()
+                    .into(mBinding.ivDishImage)
 
-        mbinding.edType.setOnClickListener(this)
-        mbinding.edCategory.setOnClickListener(this)
-        mbinding.edCookingTimeInMinutes.setOnClickListener(this)
 
-        mbinding.btnAddDish.setOnClickListener(this)
+                mBinding!!.edTitle.setText(it.title)
+                mBinding!!.edType.setText(it.type)
+                mBinding!!.edCategory.setText(it.category)
+                mBinding!!.edIngredients.setText(it.ingredients)
+                mBinding!!.edDirectionToCook.setText(it.directionToCook)
+                mBinding!!.edCookingTimeInMinutes.setText(it.cookingTime)
+
+                mBinding!!.btnAddDish.text = resources.getString(R.string.lbl_update_dish)
+            }
+        }
+
+        mBinding.ivAddDishImage.setOnClickListener(this)
+
+        mBinding.edType.setOnClickListener(this)
+        mBinding.edCategory.setOnClickListener(this)
+        mBinding.edCookingTimeInMinutes.setOnClickListener(this)
+
+        mBinding.btnAddDish.setOnClickListener(this)
     }
 
     private fun setupActionBar() {
-        setSupportActionBar(mbinding.toolbarAddDishActivity)
+
+        setSupportActionBar(mBinding.toolbarAddDishActivity)
+        /**
+         * edit and add bar
+         */
+        if (mFavDishDetails != null && mFavDishDetails!!.id != 0) {
+            supportActionBar?.let {
+                it.title = resources.getString(R.string.title_edit_dish)
+            }
+        } else {
+            supportActionBar?.let {
+                it.title = resources.getString(R.string.add_dish)
+            }
+        }
+
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
-        mbinding.toolbarAddDishActivity.setNavigationOnClickListener {
+        mBinding.toolbarAddDishActivity.setNavigationOnClickListener {
             onBackPressed()
         }
     }
@@ -124,14 +165,14 @@ class AddUpdateDishActivity : AppCompatActivity(), View.OnClickListener {
                 }
                 R.id.btn_add_dish -> {
                     //without space
-                    val title = mbinding.edTitle.text.toString().trim { it <= ' ' }
-                    val type = mbinding.edType.text.toString().trim { it <= ' ' }
-                    val category = mbinding.edCategory.text.toString().trim { it <= ' ' }
-                    val ingredients = mbinding.edIngredients.text.toString().trim { it <= ' ' }
+                    val title = mBinding.edTitle.text.toString().trim { it <= ' ' }
+                    val type = mBinding.edType.text.toString().trim { it <= ' ' }
+                    val category = mBinding.edCategory.text.toString().trim { it <= ' ' }
+                    val ingredients = mBinding.edIngredients.text.toString().trim { it <= ' ' }
                     val cookingTimeInMinutes =
-                        mbinding.edCookingTimeInMinutes.text.toString().trim { it <= ' ' }
+                        mBinding.edCookingTimeInMinutes.text.toString().trim { it <= ' ' }
                     val cookingDirection =
-                        mbinding.edDirectionToCook.text.toString().trim { it <= ' ' }
+                        mBinding.edDirectionToCook.text.toString().trim { it <= ' ' }
 
                     when {
                         TextUtils.isEmpty(mImagePath) -> {
@@ -184,20 +225,39 @@ class AddUpdateDishActivity : AppCompatActivity(), View.OnClickListener {
                             ).show()
                         }
                         else -> {
+                            var dishID = 0
+                            var imageSource = Constants.DISH_IMAGE_SOURCE_LOCAL
+                            var favoriteDish = false
+
+                            mFavDishDetails?.let {
+                                if (it.id != 0) {
+                                    dishID = it.id
+                                    imageSource = it.imageSource
+                                    favoriteDish = it.favoriteDish
+                                }
+                            }
+
                             val favDishDetails: FavDish = FavDish(
                                 mImagePath,
-                                Constants.DISH_IMAGE_SOURCE_LOCAL,
+                                imageSource,
                                 title,
                                 type,
                                 category,
                                 ingredients,
                                 cookingTimeInMinutes,
                                 cookingDirection,
-                                false
+                                favoriteDish,
+                                dishID
                             )
 
-                            mFavDishViewModel.insert(favDishDetails)
-                            Toast.makeText(this, "add dish details.", Toast.LENGTH_SHORT).show()
+                            if (dishID == 0) {
+                                mFavDishViewModel.insert(favDishDetails)
+                                Toast.makeText(this, "add dish details.", Toast.LENGTH_SHORT).show()
+                            } else {
+                                mFavDishViewModel.update(favDishDetails)
+                                Toast.makeText(this, "update success", Toast.LENGTH_SHORT).show()
+                            }
+
                             finish()    //close activity
                         }
                     }
@@ -283,15 +343,15 @@ class AddUpdateDishActivity : AppCompatActivity(), View.OnClickListener {
         when (selection) {
             Constants.DISH_TYPE -> {
                 mCustomListDialog.dismiss()
-                mbinding.edType.setText(item)
+                mBinding.edType.setText(item)
             }
             Constants.DISH_CATEGORY -> {
                 mCustomListDialog.dismiss()
-                mbinding.edCategory.setText(item)
+                mBinding.edCategory.setText(item)
             }
             else -> {
                 mCustomListDialog.dismiss()
-                mbinding.edCookingTimeInMinutes.setText(item)
+                mBinding.edCookingTimeInMinutes.setText(item)
             }
         }
     }
@@ -306,12 +366,12 @@ class AddUpdateDishActivity : AppCompatActivity(), View.OnClickListener {
 
                     Glide.with(this).load(thumbnail)
                         .centerCrop()
-                        .into(mbinding.ivDishImage)
+                        .into(mBinding.ivDishImage)
 
                     mImagePath = saveImageToInternalStorage(thumbnail)
                     Log.i("ImagePath", mImagePath)
 
-                    mbinding.ivAddDishImage.setImageDrawable(
+                    mBinding.ivAddDishImage.setImageDrawable(
                         ContextCompat.getDrawable(
                             this,
                             R.drawable.ic_vector_edit
@@ -355,9 +415,9 @@ class AddUpdateDishActivity : AppCompatActivity(), View.OnClickListener {
                                 return false
                             }
                         })
-                        .into(mbinding.ivDishImage)
+                        .into(mBinding.ivDishImage)
 
-                    mbinding.ivAddDishImage.setImageDrawable(
+                    mBinding.ivAddDishImage.setImageDrawable(
                         ContextCompat.getDrawable(
                             this,
                             R.drawable.ic_vector_edit
@@ -416,7 +476,7 @@ class AddUpdateDishActivity : AppCompatActivity(), View.OnClickListener {
 
         binding.rvList.layoutManager = LinearLayoutManager(this)
 
-        val adapter = CustomListItemAdapter(this, itemList, selection)
+        val adapter = CustomListItemAdapter(this, itemList, selection, null)
         binding.rvList.adapter = adapter
         mCustomListDialog.show()
     }
